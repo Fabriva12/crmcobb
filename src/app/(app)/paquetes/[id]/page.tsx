@@ -4,7 +4,7 @@ import { deletePackageAction, updatePackageAction } from "@/lib/actions/packages
 import { requireUser } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatCurrencyCRC, formatDate, formatWeight } from "@/lib/format";
-import { getExchangeRate } from "@/lib/settings";
+import { getExchangeRate, resolveRate } from "@/lib/settings";
 import {
   Button,
   Card,
@@ -44,6 +44,7 @@ export default async function PaqueteDetallePage({
   const pkg = pkgRes.data;
   const history = historyRes.data ?? [];
   const client = relationSingle(pkg.clients);
+  const pkgRate = resolveRate(pkg.tipo_cambio, rate);
 
   return (
     <div className="space-y-6">
@@ -104,9 +105,11 @@ export default async function PaqueteDetallePage({
         </Card>
         <Card className="border-brand-200 bg-brand-50/50">
           <p className="text-2xl font-bold text-brand-600">
-            {formatCurrencyCRC(Number(pkg.total || 0) * rate)}
+            {formatCurrencyCRC(Number(pkg.total || 0) * pkgRate)}
           </p>
-          <p className="mt-1 text-sm text-gray-500">Total (₡)</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Total (₡) · fijado a 1 $ = {pkgRate} ₡
+          </p>
         </Card>
       </div>
 

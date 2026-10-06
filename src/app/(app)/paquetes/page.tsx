@@ -9,19 +9,19 @@ import { PaquetesTable } from "@/components/paquetes-table";
 export default async function PaquetesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; error?: string; lista?: string }>;
+  searchParams: Promise<{ status?: string; error?: string; lista?: string; pagado?: string }>;
 }) {
   await requireUser();
   const supabase = await createClient();
   const rate = await getExchangeRate(supabase);
 
-  const { status, error: errorParam, lista } = await searchParams;
+  const { status, error: errorParam, lista, pagado } = await searchParams;
 
   const [packagesRes, listsRes] = await Promise.all([
     supabase
       .from("packages")
       .select(
-        "id, tracking_number, status, peso_lb, tarifa_lb, pagado, created_at, descripcion, vuelo, fecha_recepcion, lista_id, clients(id, nombre, telefono), package_lists(nombre)"
+        "id, tracking_number, status, peso_lb, tarifa_lb, tipo_cambio, pagado, created_at, descripcion, vuelo, fecha_recepcion, lista_id, clients(id, nombre, telefono), package_lists(nombre)"
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -55,7 +55,7 @@ export default async function PaquetesPage({
           <ExchangeRateInput currentRate={rate} />
         </div>
         <p className="pb-1 text-xs text-gray-400">
-          Los totales se muestran en colones · 1 $ = {rate} ₡
+          El dólar se fija al guardar el precio de cada paquete · 1 $ = {rate} ₡
         </p>
       </div>
 
@@ -79,6 +79,7 @@ export default async function PaquetesPage({
           initialStatus={status ?? ""}
           lists={lists}
           initialLista={lista ?? ""}
+          initialPagado={pagado ?? ""}
         />
       )}
     </div>

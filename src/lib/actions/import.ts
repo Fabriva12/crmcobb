@@ -10,6 +10,7 @@ import {
   toTitleCase,
 } from "@/lib/import-xlsx";
 import { normalizeSearch } from "@/lib/format";
+import { getExchangeRate } from "@/lib/settings";
 import { DEFAULT_TARIFF_LB } from "@/lib/types";
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
@@ -376,12 +377,14 @@ export async function confirmImportAction(
     };
   }
 
+  const importRate = await getExchangeRate(supabase);
   const packageRows = pending.map((r) => ({
     tracking_number: r.tracking,
     client_id: clientByRow.get(r.tracking) ?? null,
     status: "en_camino",
     peso_lb: 0,
     tarifa_lb: DEFAULT_TARIFF_LB,
+    tipo_cambio: importRate,
     pagado: false,
     descripcion: r.descripcion,
     notas: null,

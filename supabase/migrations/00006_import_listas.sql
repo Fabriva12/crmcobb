@@ -12,24 +12,7 @@ create index if not exists package_lists_created_at_idx
   on public.package_lists (created_at desc);
 
 -- 2. Asociar paquetes a una lista y guardar la fecha de recepción del Excel
-alter table public.packages add column if not exists lista_id uuid null;
 
-do $$
-begin
-  if not exists (
-    select 1 from pg_constraint where conname = 'packages_lista_fk'
-  ) then
-    alter table public.packages
-      add constraint packages_lista_fk
-      foreign key (lista_id) references public.package_lists(id)
-      on delete cascade;
-  end if;
-end
-$$;
-
-alter table public.packages add column if not exists fecha_recepcion timestamptz null;
-
-create index if not exists packages_lista_idx on public.packages (lista_id);
 
 -- 3. RLS para package_lists
 alter table public.package_lists enable row level security;

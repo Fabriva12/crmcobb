@@ -21,6 +21,8 @@ export interface Package {
   peso_lb: number;
   tarifa_lb: number;
   total: number;
+  /** Dólar vigente al momento de fijar el precio; null = seguir el global. */
+  tipo_cambio: number | null;
   pagado: boolean | null;
   descripcion: string | null;
   notas: string | null;

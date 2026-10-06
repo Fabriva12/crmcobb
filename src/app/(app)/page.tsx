@@ -7,7 +7,7 @@ import {
   type PackageStatus,
 } from "@/lib/types";
 import { formatCurrencyCRC, formatDateNumeric } from "@/lib/format";
-import { getExchangeRate } from "@/lib/settings";
+import { getExchangeRate, resolveRate } from "@/lib/settings";
 import { Button, Card, EmptyState } from "@/components/ui";
 import { PackageRow, PackageControls } from "@/components/package-row";
 
@@ -28,16 +28,15 @@ export default async function DashboardPage() {
     1
   ).toISOString();
 
-  const [packagesRes, deliveredMonthRes, recentRes] = await Promise.all([
+  const [packagesRes, deliveredRes, recentRes] = await Promise.all([
     supabase.from("packages").select("status"),
     supabase
       .from("packages")
-      .select("total, pagado")
-      .eq("status", "entregado")
-      .gte("created_at", monthStart),
+      .select("total, pagado, tipo_cambio, created_at")
+      .eq("status", "entregado"),
     supabase
       .from("packages")
-      .select("id, tracking_number, status, peso_lb, tarifa_lb, total, pagado, created_at, clients(nombre)")
+      .select("id, tracking_number, status, peso_lb, tarifa_lb, tipo_cambio, total, pagado, created_at, clients(nombre)")
       .order("created_at", { ascending: false })
       .limit(5),
   ]);
@@ -51,13 +50,19 @@ export default async function DashboardPage() {
     counts[p.status as PackageStatus] = (counts[p.status as PackageStatus] ?? 0) + 1;
   }
 
-  const deliveredMonth = deliveredMonthRes.data ?? [];
-  const monthRevenue = deliveredMonth
-    .filter((p) => p.pagado === true)
-    .reduce((acc, p) => acc + (Number(p.total) || 0), 0);
-  const monthPending = deliveredMonth
+  const delivered = deliveredRes.data ?? [];
+  const monthRevenue = delivered
+    .filter((p) => p.pagado === true && p.created_at >= monthStart)
+    .reduce(
+      (acc, p) => acc + (Number(p.total) || 0) * resolveRate(p.tipo_cambio, rate),
+      0
+    );
+  const totalPending = delivered
     .filter((p) => p.pagado !== true)
-    .reduce((acc, p) => acc + (Number(p.total) || 0), 0);
+    .reduce(
+      (acc, p) => acc + (Number(p.total) || 0) * resolveRate(p.tipo_cambio, rate),
+      0
+    );
 
   const recent = recentRes.data ?? [];
 
@@ -90,15 +95,15 @@ export default async function DashboardPage() {
         ))}
         <Card className="border-brand-200 bg-brand-50/50">
           <p className="break-words text-xl font-bold text-brand-600 sm:text-3xl">
-            {formatCurrencyCRC(monthRevenue * rate)}
+            {formatCurrencyCRC(monthRevenue)}
           </p>
           <p className="mt-1 text-sm text-gray-500">Cobrado este mes (₡)</p>
         </Card>
         <Card className="border-amber-200 bg-amber-50/50">
           <p className="break-words text-xl font-bold text-amber-600 sm:text-3xl">
-            {formatCurrencyCRC(monthPending * rate)}
+            {formatCurrencyCRC(totalPending)}
           </p>
-          <p className="mt-1 text-sm text-gray-500">Pendiente de cobro (₡)</p>
+          <p className="mt-1 text-sm text-gray-500">Adeudo total (₡)</p>
         </Card>
       </div>
 
@@ -145,6 +150,7 @@ export default async function DashboardPage() {
                     pesoLb={p.peso_lb}
                     tarifaLb={p.tarifa_lb}
                     rate={rate}
+                    tipoCambio={p.tipo_cambio}
                   />
                 </Card>
               ))}
@@ -188,6 +194,7 @@ export default async function DashboardPage() {
                         pesoLb={p.peso_lb}
                         tarifaLb={p.tarifa_lb}
                         rate={rate}
+                        tipoCambio={p.tipo_cambio}
                         cellClassName="py-2.5 pr-4"
                       />
                       <td className="py-2.5 text-gray-500">

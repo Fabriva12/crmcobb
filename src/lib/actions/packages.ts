@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/dal";
+import { getExchangeRate } from "@/lib/settings";
 import { createClient } from "@/lib/supabase/server";
 import {
   DEFAULT_TARIFF_LB,
@@ -93,6 +94,7 @@ export async function createPackageAction(
       status,
       peso_lb,
       tarifa_lb,
+      tipo_cambio: await getExchangeRate(supabase),
       descripcion,
       vuelo,
       fecha_recepcion,
@@ -144,12 +146,18 @@ export async function updatePackageAction(
 
   const { data: current, error: fetchError } = await supabase
     .from("packages")
-    .select("status, pagado")
+    .select("status, pagado, tarifa_lb, tipo_cambio")
     .eq("id", id)
     .single();
   if (fetchError || !current) {
     return { error: `No se pudo leer el paquete: ${fetchError?.message ?? "no encontrado"}` };
   }
+
+  // El snapshot del dólar solo cambia si cambia la tarifa (el precio).
+  const tipo_cambio =
+    Number(current.tarifa_lb) !== tarifa_lb
+      ? await getExchangeRate(supabase)
+      : (current.tipo_cambio ?? null);
 
   const pagadoField = formData.get("pagado");
   const pagado =
@@ -163,6 +171,7 @@ export async function updatePackageAction(
       status,
       peso_lb,
       tarifa_lb,
+      tipo_cambio,
       descripcion,
       vuelo,
       fecha_recepcion,

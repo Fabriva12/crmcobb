@@ -29,6 +29,7 @@ type PaqueteRow = {
   status: string;
   peso_lb: number | string | null;
   tarifa_lb: number | string | null;
+  tipo_cambio: number | string | null;
   pagado: boolean | null;
   created_at: string | null;
   descripcion: string | null;
@@ -51,12 +52,14 @@ export function PaquetesTable({
   initialStatus = "",
   lists = [],
   initialLista = "",
+  initialPagado = "",
 }: {
   paquetes: PaqueteRow[];
   rate: number;
   initialStatus?: string;
   lists?: { id: string; nombre: string }[];
   initialLista?: string;
+  initialPagado?: string;
 }) {
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState<string>(
@@ -66,6 +69,9 @@ export function PaquetesTable({
   );
   const [lista, setLista] = useState<string>(
     lists.some((l) => l.id === initialLista) ? initialLista : ""
+  );
+  const [pagado, setPagado] = useState<string>(
+    initialPagado === "true" || initialPagado === "false" ? initialPagado : ""
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -78,12 +84,14 @@ export function PaquetesTable({
       } else if (lista && p.lista_id !== lista) {
         return false;
       }
+      if (pagado === "true" && p.pagado !== true) return false;
+      if (pagado === "false" && p.pagado === true) return false;
       if (!needle) return true;
       const tracking = normalizeSearch(p.tracking_number ?? "");
       const cliente = normalizeSearch(relationSingle(p.clients)?.nombre ?? "");
       return tracking.includes(needle) || cliente.includes(needle);
     });
-  }, [paquetes, q, estado, lista]);
+  }, [paquetes, q, estado, lista, pagado]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -122,6 +130,8 @@ export function PaquetesTable({
           setEstado={setEstado}
           lista={lista}
           setLista={setLista}
+          pagado={pagado}
+          setPagado={setPagado}
           lists={lists}
           total={paquetes.length}
         />
@@ -141,6 +151,8 @@ export function PaquetesTable({
           setEstado={setEstado}
           lista={lista}
           setLista={setLista}
+          pagado={pagado}
+          setPagado={setPagado}
           lists={lists}
           total={paquetes.length}
         />
@@ -217,6 +229,7 @@ export function PaquetesTable({
               pesoLb={p.peso_lb ?? 0}
               tarifaLb={p.tarifa_lb ?? DEFAULT_TARIFF_LB}
               rate={rate}
+              tipoCambio={p.tipo_cambio}
             />
             <p className="pt-1 text-xs text-gray-400">
               Vuelo: {p.vuelo || "—"} · Bodega: {formatDateNumeric(p.fecha_recepcion)}
@@ -290,6 +303,7 @@ export function PaquetesTable({
                     pesoLb={p.peso_lb ?? 0}
                     tarifaLb={p.tarifa_lb ?? DEFAULT_TARIFF_LB}
                     rate={rate}
+                    tipoCambio={p.tipo_cambio}
                     cellClassName="whitespace-nowrap px-4 py-3"
                   />
                   <td className="whitespace-nowrap px-4 py-3 text-gray-500">
@@ -563,6 +577,8 @@ function BuscarPaquetes({
   setEstado,
   lista,
   setLista,
+  pagado,
+  setPagado,
   lists,
   total,
 }: {
@@ -572,6 +588,8 @@ function BuscarPaquetes({
   setEstado: (value: string) => void;
   lista: string;
   setLista: (value: string) => void;
+  pagado: string;
+  setPagado: (value: string) => void;
   lists: { id: string; nombre: string }[];
   total: number;
 }) {
@@ -613,6 +631,17 @@ function BuscarPaquetes({
               {PACKAGE_STATUS_LABELS[s]}
             </option>
           ))}
+        </Select>
+      </div>
+      <div className="sm:w-48">
+        <Select
+          value={pagado}
+          onChange={(e) => setPagado(e.target.value)}
+          aria-label="Filtrar por pago"
+        >
+          <option value="">Todos los pagos</option>
+          <option value="true">Pagados</option>
+          <option value="false">No pagados</option>
         </Select>
       </div>
       <p className="text-xs text-gray-400">{total} paquetes</p>
