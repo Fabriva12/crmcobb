@@ -12,6 +12,7 @@ import {
   type PackageStatus,
 } from "@/lib/types";
 import { formatCurrencyCRC } from "@/lib/format";
+import { resolveRate } from "@/lib/settings";
 
 function usePackageRowState({
   initialStatus,
@@ -137,6 +138,7 @@ export function PackageRow({
   pesoLb: initialPesoLb,
   tarifaLb,
   rate,
+  tipoCambio,
   cellClassName = "px-5 py-3",
 }: {
   packageId: string;
@@ -145,6 +147,7 @@ export function PackageRow({
   pesoLb: number | string;
   tarifaLb: number | string;
   rate: number;
+  tipoCambio?: number | string | null;
   cellClassName?: string;
 }) {
   const {
@@ -165,7 +168,7 @@ export function PackageRow({
     initialPagado,
     initialPesoLb,
   });
-  const totalCRC = totalPeso * Number(tarifaLb) * rate;
+  const totalCRC = totalPeso * Number(tarifaLb) * resolveRate(tipoCambio, rate);
 
   return (
     <>
@@ -240,6 +243,7 @@ export function PackageControls({
   pesoLb: initialPesoLb,
   tarifaLb,
   rate,
+  tipoCambio,
 }: {
   packageId: string;
   status: PackageStatus;
@@ -247,6 +251,7 @@ export function PackageControls({
   pesoLb: number | string;
   tarifaLb: number | string;
   rate: number;
+  tipoCambio?: number | string | null;
 }) {
   const {
     isPending,
@@ -266,7 +271,7 @@ export function PackageControls({
     initialPagado,
     initialPesoLb,
   });
-  const totalCRC = totalPeso * Number(tarifaLb) * rate;
+  const totalCRC = totalPeso * Number(tarifaLb) * resolveRate(tipoCambio, rate);
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
