@@ -10,7 +10,8 @@ import {
   relationSingle,
   type PackageStatus,
 } from "@/lib/types";
-import { formatDateNumeric, normalizeSearch } from "@/lib/format";
+import { formatCurrencyCRC, formatDateNumeric, normalizeSearch } from "@/lib/format";
+import { resolveRate } from "@/lib/settings";
 import { Button, Card, EmptyState, Input, Select } from "@/components/ui";
 import { ConfirmDeleteForm } from "@/components/confirm-delete-form";
 import {
@@ -112,6 +113,20 @@ export function PaquetesTable({
     });
   }, [filtered, allFilteredSelected]);
 
+  const selectedTotalCRC = useMemo(() => {
+    if (selectedIds.size === 0) return 0;
+    let total = 0;
+    for (const p of paquetes) {
+      if (!selectedIds.has(p.id)) continue;
+      const peso = Number(p.peso_lb ?? 0);
+      const tarifa = Number(p.tarifa_lb ?? DEFAULT_TARIFF_LB);
+      if (!Number.isFinite(peso) || peso <= 0) continue;
+      if (!Number.isFinite(tarifa) || tarifa <= 0) continue;
+      total += peso * tarifa * resolveRate(p.tipo_cambio, rate);
+    }
+    return total;
+  }, [paquetes, rate, selectedIds]);
+
   if (paquetes.length === 0) {
     return (
       <Card>
@@ -163,6 +178,7 @@ export function PaquetesTable({
             value: s,
             label: PACKAGE_STATUS_LABELS[s],
           }))}
+          selectedTotalCRC={selectedTotalCRC}
           onApply={(status, pagado) => {
             const changes: { status?: PackageStatus; pagado?: boolean } = {};
             if (status) changes.status = status;
@@ -453,6 +469,7 @@ function BulkActionsBar({
   onDelete,
   onClear,
   onDone,
+  selectedTotalCRC,
 }: {
   count: number;
   statuses: { value: string; label: string }[];
@@ -463,6 +480,7 @@ function BulkActionsBar({
   onDelete: () => Promise<{ error?: string; deleted?: number }>;
   onClear: () => void;
   onDone: () => void;
+  selectedTotalCRC?: number;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -511,59 +529,68 @@ function BulkActionsBar({
   const anyChange = status !== "" || pagado !== "";
 
   return (
-    <Card className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <p className="text-sm font-medium text-gray-700">
-        {count} paquete{count !== 1 && "s"} seleccionado{count !== 1 && "s"}
-      </p>
-      <div className="flex flex-1 flex-wrap items-center gap-2">
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          disabled={pending}
-          aria-label="Cambiar estado de seleccionados"
-          className="rounded-md border border-brand-300 bg-white px-2 py-1.5 text-xs text-gray-700 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50"
-        >
-          <option value="">Estado: no cambiar</option>
-          {statuses.map((s) => (
-            <option key={s.value} value={s.value}>
-              Estado: {s.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={pagado}
-          onChange={(e) => setPagado(e.target.value)}
-          disabled={pending}
-          aria-label="Cambiar pagado de seleccionados"
-          className="rounded-md border border-brand-300 bg-white px-2 py-1.5 text-xs text-gray-700 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50"
-        >
-          <option value="">Pagado: no cambiar</option>
-          <option value="true">Pagado: Sí</option>
-          <option value="false">Pagado: No</option>
-        </select>
-        <Button
-          size="sm"
-          onClick={handleApply}
-          disabled={pending || !anyChange}
-        >
-          {isPending ? "Aplicando…" : "Aplicar"}
-        </Button>
-        <Button
-          size="sm"
-          variant="danger"
-          onClick={handleDelete}
-          disabled={pending}
-        >
-          {isDeleting ? "Eliminando…" : "Eliminar"}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={onClear}
-          disabled={pending}
-        >
-          Limpiar
-        </Button>
+    <Card className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-medium text-gray-700">
+          {count} paquete{count !== 1 && "s"} seleccionado{count !== 1 && "s"}
+        </p>
+        {typeof selectedTotalCRC === "number" && (
+          <p className="text-sm font-semibold text-gray-900">
+            Total seleccionado: {formatCurrencyCRC(selectedTotalCRC)}
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            disabled={pending}
+            aria-label="Cambiar estado de seleccionados"
+            className="rounded-md border border-brand-300 bg-white px-2 py-1.5 text-xs text-gray-700 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50"
+          >
+            <option value="">Estado: no cambiar</option>
+            {statuses.map((s) => (
+              <option key={s.value} value={s.value}>
+                Estado: {s.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={pagado}
+            onChange={(e) => setPagado(e.target.value)}
+            disabled={pending}
+            aria-label="Cambiar pagado de seleccionados"
+            className="rounded-md border border-brand-300 bg-white px-2 py-1.5 text-xs text-gray-700 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50"
+          >
+            <option value="">Pagado: no cambiar</option>
+            <option value="true">Pagado: Sí</option>
+            <option value="false">Pagado: No</option>
+          </select>
+          <Button
+            size="sm"
+            onClick={handleApply}
+            disabled={pending || !anyChange}
+          >
+            {isPending ? "Aplicando…" : "Aplicar"}
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={handleDelete}
+            disabled={pending}
+          >
+            {isDeleting ? "Eliminando…" : "Eliminar"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onClear}
+            disabled={pending}
+          >
+            Limpiar
+          </Button>
+        </div>
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
     </Card>
