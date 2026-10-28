@@ -86,7 +86,9 @@ export default async function DashboardPage() {
         {statuses.map((s) => (
           <Link key={s} href={`/paquetes?status=${s}`}>
             <Card className="transition hover:shadow-md">
-              <p className="text-3xl font-bold text-gray-900">{counts[s]}</p>
+              <p className="text-2xl font-bold tabular-nums text-gray-900 sm:text-xl lg:text-2xl">
+                {counts[s]}
+              </p>
               <p className="mt-1 text-sm text-gray-500">
                 {PACKAGE_STATUS_LABELS[s]}
               </p>
@@ -94,13 +96,13 @@ export default async function DashboardPage() {
           </Link>
         ))}
         <Card className="border-brand-200 bg-brand-50/50">
-          <p className="break-words text-xl font-bold text-brand-600 sm:text-3xl">
+          <p className="break-words text-lg font-bold tabular-nums text-brand-600 sm:text-xl lg:text-2xl">
             {formatCurrencyCRC(monthRevenue)}
           </p>
           <p className="mt-1 text-sm text-gray-500">Cobrado este mes (₡)</p>
         </Card>
         <Card className="border-amber-200 bg-amber-50/50">
-          <p className="break-words text-xl font-bold text-amber-600 sm:text-3xl">
+          <p className="break-words text-lg font-bold tabular-nums text-amber-600 sm:text-xl lg:text-2xl">
             {formatCurrencyCRC(totalPending)}
           </p>
           <p className="mt-1 text-sm text-gray-500">Adeudo total (₡)</p>

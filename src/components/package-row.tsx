@@ -14,6 +14,12 @@ import {
 import { formatCurrencyCRC } from "@/lib/format";
 import { resolveRate } from "@/lib/settings";
 
+function formatPesoInputValue(value: number | string | null | undefined) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return "";
+  return String(num);
+}
+
 function usePackageRowState({
   initialStatus,
   initialPagado,
@@ -21,7 +27,7 @@ function usePackageRowState({
 }: {
   initialStatus: PackageStatus;
   initialPagado: boolean | null;
-  initialPesoLb: number | string;
+  initialPesoLb: number | string | null | undefined;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -31,7 +37,7 @@ function usePackageRowState({
   const [status, setStatus] = useState<PackageStatus>(initialStatus);
   const [pagado, setPagado] = useState<boolean>(initialPagado === true);
   const [pesoText, setPesoText] = useState<string>(
-    String(Number(initialPesoLb))
+    formatPesoInputValue(initialPesoLb)
   );
 
   const [prevServer, setPrevServer] = useState({
@@ -52,14 +58,12 @@ function usePackageRowState({
     });
     setStatus(initialStatus);
     setPagado(initialPagado === true);
-    setPesoText(String(Number(initialPesoLb)));
+    setPesoText(formatPesoInputValue(initialPesoLb));
   }
 
   const parsedPeso = Number(pesoText.replace(",", "."));
   const totalPeso =
-    Number.isFinite(parsedPeso) && parsedPeso >= 0
-      ? parsedPeso
-      : Number(initialPesoLb);
+    Number.isFinite(parsedPeso) && parsedPeso > 0 ? parsedPeso : 0;
 
   function commit(
     run: () => Promise<{ error?: string }>,
@@ -98,17 +102,31 @@ function usePackageRowState({
   }
 
   function saveWeight(packageId: string) {
-    const weight = Number(pesoText.replace(",", "."));
-    if (Number.isNaN(weight) || weight < 0) {
-      setError("Peso inválido");
-      setSaved(false);
+    const trimmed = pesoText.replace(",", ".").trim();
+    let weight = 0;
+    if (trimmed === "") {
+      weight = 0;
+    } else {
+      const parsed = Number(trimmed);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        setError("Peso inválido");
+        setSaved(false);
+        return;
+      }
+      weight = parsed;
+    }
+
+    if (weight === Number(initialPesoLb ?? 0)) {
+      if (weight === 0) {
+        setPesoText("");
+      }
       return;
     }
-    if (weight === Number(initialPesoLb)) return;
-    setPesoText(String(weight));
+
+    setPesoText(weight === 0 ? "" : String(weight));
     commit(
       () => updatePackageWeight(packageId, weight),
-      () => setPesoText(String(Number(initialPesoLb)))
+      () => setPesoText(formatPesoInputValue(initialPesoLb))
     );
   }
 
@@ -144,7 +162,7 @@ export function PackageRow({
   packageId: string;
   status: PackageStatus;
   pagado: boolean | null;
-  pesoLb: number | string;
+  pesoLb: number | string | null | undefined;
   tarifaLb: number | string;
   rate: number;
   tipoCambio?: number | string | null;
@@ -168,7 +186,11 @@ export function PackageRow({
     initialPagado,
     initialPesoLb,
   });
-  const totalCRC = totalPeso * Number(tarifaLb) * resolveRate(tipoCambio, rate);
+  const parsedPesoInput = Number(pesoText.replace(",", "."));
+  const hasValidPeso = Number.isFinite(parsedPesoInput) && parsedPesoInput > 0;
+  const totalCRC = hasValidPeso
+    ? totalPeso * Number(tarifaLb) * resolveRate(tipoCambio, rate)
+    : 0;
 
   return (
     <>
@@ -229,8 +251,8 @@ export function PackageRow({
         )}
       </td>
       <td className={`${cellClassName} font-medium text-gray-900`}>
-        {formatCurrencyCRC(totalCRC)}
-        {isPending && <span className="ml-1 text-xs text-gray-400">…</span>}
+        {hasValidPeso ? formatCurrencyCRC(totalCRC) : ""}
+        {isPending && hasValidPeso && <span className="ml-1 text-xs text-gray-400">…</span>}
       </td>
     </>
   );
@@ -248,7 +270,7 @@ export function PackageControls({
   packageId: string;
   status: PackageStatus;
   pagado: boolean | null;
-  pesoLb: number | string;
+  pesoLb: number | string | null | undefined;
   tarifaLb: number | string;
   rate: number;
   tipoCambio?: number | string | null;
@@ -271,7 +293,11 @@ export function PackageControls({
     initialPagado,
     initialPesoLb,
   });
-  const totalCRC = totalPeso * Number(tarifaLb) * resolveRate(tipoCambio, rate);
+  const parsedPesoInput = Number(pesoText.replace(",", "."));
+  const hasValidPeso = Number.isFinite(parsedPesoInput) && parsedPesoInput > 0;
+  const totalCRC = hasValidPeso
+    ? totalPeso * Number(tarifaLb) * resolveRate(tipoCambio, rate)
+    : 0;
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -338,7 +364,7 @@ export function PackageControls({
           Total (₡)
         </label>
         <p className="pt-1.5 text-sm font-medium text-gray-900">
-          {formatCurrencyCRC(totalCRC)}
+          {hasValidPeso ? formatCurrencyCRC(totalCRC) : ""}
         </p>
       </div>
       {error && <p className="col-span-full text-xs text-red-600">{error}</p>}
